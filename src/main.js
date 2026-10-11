@@ -3,6 +3,7 @@ import {
   attachCamera,
   cameraIsActive,
   captureMoment,
+  getAvailableCameras,
   startCamera,
   stopCamera,
 } from "./camera.js";
@@ -18,6 +19,109 @@ import {
 } from "./session-store.js";
 
 const SCREEN_ORDER = ["home", "capture", "review", "edit", "finish"];
+const SCREEN_TITLES = {
+  home: "Kisap — Free Online Photo Booth & Photo Strip Maker",
+  capture: "Capture Your Moments — Kisap",
+  review: "Review Your Photos — Kisap",
+  edit: "Personalize Your Photo Strip — Kisap",
+  finish: "Download and Share — Kisap",
+};
+let deferredInstallPrompt = null;
+let installDialogOpen = false;
+
+function isStandaloneApp() {
+  return window.matchMedia?.("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+}
+
+function installPlatform() {
+  const ua = window.navigator.userAgent;
+  const isIPadOS = window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
+  if (/iPhone|iPad|iPod/i.test(ua) || isIPadOS) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+function isIOSSafari() {
+  if (installPlatform() !== "ios") return false;
+  return /Safari/i.test(window.navigator.userAgent)
+    && !/(CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo)/i.test(window.navigator.userAgent);
+}
+
+function installIcon(type) {
+  if (type === "ios") return "⌑";
+  if (type === "android") return "▯";
+  return "▱";
+}
+
+function installDialogMarkup() {
+  if (!installDialogOpen || isStandaloneApp()) return "";
+  const platform = installPlatform();
+  const canPrompt = Boolean(deferredInstallPrompt);
+  let title = "Install Kisap";
+  let eyebrow = "Keep the booth close";
+  let body = "Add Kisap to this device for quick access and a focused, full-screen photo booth.";
+  let instructions = "";
+
+  if (platform === "ios") {
+    title = "Install on iPhone or iPad";
+    body = isIOSSafari()
+      ? "Safari can add Kisap to your Home Screen as a standalone web app."
+      : "Apple requires Safari to install Kisap. Open this page in Safari first, then follow these steps.";
+    instructions = `
+      <ol class="install-steps">
+        ${!isIOSSafari() ? `<li><span>1</span><p>Open this page in <strong>Safari</strong>.</p></li>` : ""}
+        <li><span>${isIOSSafari() ? "1" : "2"}</span><p>Tap Safari’s <strong>Share</strong> button.</p></li>
+        <li><span>${isIOSSafari() ? "2" : "3"}</span><p>Choose <strong>Add to Home Screen</strong>.</p></li>
+        <li><span>${isIOSSafari() ? "3" : "4"}</span><p>Turn on <strong>Open as Web App</strong>, then tap <strong>Add</strong>.</p></li>
+      </ol>
+    `;
+  } else if (canPrompt) {
+    instructions = `
+      <div class="install-ready-card">
+        <span class="install-device-icon" aria-hidden="true">${installIcon(platform)}</span>
+        <div><strong>This device is ready</strong><p>Your browser will confirm before Kisap is installed.</p></div>
+      </div>
+    `;
+  } else if (platform === "android") {
+    title = "Install on Android";
+    body = "Your browser has not offered the automatic installer yet. You can still add Kisap manually.";
+    instructions = `
+      <ol class="install-steps">
+        <li><span>1</span><p>Open Kisap in <strong>Chrome</strong>.</p></li>
+        <li><span>2</span><p>Tap the browser menu <strong>⋮</strong>.</p></li>
+        <li><span>3</span><p>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</p></li>
+      </ol>
+    `;
+  } else {
+    title = "Install on this computer";
+    body = "Kisap can run in its own window when your browser supports web app installation.";
+    instructions = `
+      <ol class="install-steps">
+        <li><span>1</span><p>Open Kisap in <strong>Chrome</strong> or <strong>Edge</strong>.</p></li>
+        <li><span>2</span><p>Select the install icon in the address bar, or open the browser menu.</p></li>
+        <li><span>3</span><p>Choose <strong>Install Kisap</strong>.</p></li>
+      </ol>
+    `;
+  }
+
+  return `
+    <div class="install-dialog-backdrop" data-install-dialog>
+      <section class="install-dialog" role="dialog" aria-modal="true" aria-labelledby="install-dialog-title" aria-describedby="install-dialog-copy">
+        <button class="install-dialog-close" data-install-close aria-label="Close install instructions">×</button>
+        <p class="eyebrow">${eyebrow}</p>
+        <h2 id="install-dialog-title">${title}</h2>
+        <p id="install-dialog-copy" class="install-dialog-copy">${body}</p>
+        ${instructions}
+        <div class="install-dialog-actions">
+          ${canPrompt ? `<button class="button button--light" data-install-native>Install on this device <span aria-hidden="true">↓</span></button>` : ""}
+          <button class="button button--ghost" data-install-close>${canPrompt ? "Not now" : "Got it"}</button>
+        </div>
+        <p class="install-privacy-note">No account or download from an app store. Your photos still stay on this device.</p>
+      </section>
+    </div>
+  `;
+}
 const STICKER_CATALOG = [
   { id: "spark", glyph: "✦", label: "Spark" },
   { id: "heart", glyph: "♥", label: "Heart" },
@@ -306,24 +410,30 @@ function stripDiagram({ duplicate = true, usePhotos = true, editable = false } =
 
 function homeScreen() {
   const recoveredCount = appState.moments.filter(Boolean).length;
+  const showInstall = !isStandaloneApp();
   return `
     <div class="landing-page">
-      <nav class="landing-nav">
-        <div class="landing-logo">kisap<span class="signal-dot">.</span></div>
+      <a class="skip-link" href="#main-content">Skip to content</a>
+      <nav class="landing-nav" aria-label="Primary navigation">
+        <a class="landing-logo" href="#home" aria-label="Kisap home">kisap<span class="signal-dot">.</span></a>
         <div class="landing-nav-links">
           <a href="#how-it-works">How it Works</a>
           <a href="#privacy">Privacy</a>
         </div>
-        <button class="button button--ghost landing-nav-cta" data-start-session>Start Booth</button>
+        <div class="landing-nav-actions">
+          ${showInstall ? `<button class="landing-install-link" data-install-open><span aria-hidden="true">↓</span> Install Kisap</button>` : ""}
+          <button class="button button--ghost landing-nav-cta" data-start-session>Start Booth</button>
+        </div>
       </nav>
 
+      <main id="main-content">
       <header class="landing-hero">
         <div class="hero-bg-glow"></div>
         <div class="landing-hero-content">
-          <div class="hero-badge">Web Photo Booth</div>
+          <div class="hero-badge">Private Online Photo Booth</div>
           <h1 class="hero-title">A moment,<br><em>still moving.</em></h1>
           <p class="hero-subtitle">
-            Take four photos, keep the ten seconds around each one, and make a strip that feels like you.
+            Take four photos in your browser, keep the ten seconds around each one, and download a strip that feels like you.
           </p>
           
           <ul class="hero-highlights">
@@ -404,6 +514,7 @@ function homeScreen() {
           </div>
         </div>
       </section>
+      </main>
 
       <footer class="landing-footer">
         <div class="landing-footer-content footer-bottom">
@@ -422,12 +533,14 @@ function homeScreen() {
               <a href="https://github.com/codebyjhade/kisap" target="_blank" rel="noreferrer">Source on GitHub</a>
             </div>
             <div class="footer-actions">
+              ${showInstall ? `<button class="text-button footer-install" data-install-open>Install Kisap</button>` : ""}
               <a class="text-button" href="/privacy.html">Privacy</a>
               <button class="button button--ghost footer-start" data-start-session>Start now</button>
             </div>
           </div>
         </div>
       </footer>
+      ${installDialogMarkup()}
     </div>
   `;
 }
@@ -660,6 +773,22 @@ function bindInteractions() {
     });
   });
 
+  document.querySelectorAll("[data-install-open]").forEach((element) => {
+    element.addEventListener("click", () => {
+      installDialogOpen = true;
+      render();
+      window.requestAnimationFrame(() => document.querySelector("[data-install-native], [data-install-close]")?.focus());
+    });
+  });
+
+  document.querySelectorAll("[data-install-close]").forEach((element) => {
+    element.addEventListener("click", closeInstallDialog);
+  });
+  document.querySelector("[data-install-dialog]")?.addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeInstallDialog();
+  });
+  document.querySelector("[data-install-native]")?.addEventListener("click", promptInstall);
+
   document.querySelector("[data-resume-session]")?.addEventListener("click", () => {
     appState.recoveryAvailable = false;
     appState.notice = "Your private session was restored on this device.";
@@ -722,6 +851,25 @@ function bindInteractions() {
   });
 
   bindStickerInteractions();
+}
+
+function closeInstallDialog() {
+  installDialogOpen = false;
+  render();
+  window.requestAnimationFrame(() => document.querySelector("[data-install-open]")?.focus());
+}
+
+async function promptInstall() {
+  if (!deferredInstallPrompt) return;
+  const promptEvent = deferredInstallPrompt;
+  try {
+    await promptEvent.prompt();
+    await promptEvent.userChoice.catch(() => null);
+  } finally {
+    deferredInstallPrompt = null;
+    installDialogOpen = false;
+    render();
+  }
 }
 
 function stickerControls() {
@@ -898,7 +1046,6 @@ async function enableCamera() {
   appState.notice = "";
 
   try {
-    const { startCamera, getAvailableCameras } = await import("./camera.js");
     await startCamera(document.querySelector("#camera-feed"), appState.selectedCameraId);
     
     // Refresh after permission so labels and newly connected cameras are available.
@@ -931,7 +1078,6 @@ async function selectCamera(event) {
   if (status) status.textContent = "Switching to the selected camera…";
   
   try {
-    const { startCamera } = await import("./camera.js");
     await startCamera(document.querySelector("#camera-feed"), appState.selectedCameraId);
     showCameraReady();
   } catch (error) {
@@ -1143,10 +1289,12 @@ function cameraErrorMessage(error) {
 
 function render() {
   const app = document.querySelector("#app");
+  document.body.classList.toggle("install-dialog-open", installDialogOpen);
   app.classList.remove("is-capturing");
   app.dataset.screen = appState.screen;
   app.dataset.filter = appState.filter;
   app.dataset.background = appState.background;
+  document.title = SCREEN_TITLES[appState.screen] || SCREEN_TITLES.home;
 
   if (appState.screen === "home") {
     app.innerHTML = screens.home();
@@ -1885,9 +2033,48 @@ function handleCaptureShortcut(event) {
 
 document.addEventListener("keydown", handleCaptureShortcut);
 
+document.addEventListener("keydown", (event) => {
+  if (!installDialogOpen) return;
+  if (event.key === "Escape") {
+    closeInstallDialog();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = [...document.querySelectorAll("[data-install-dialog] button:not([disabled]), [data-install-dialog] a[href]")];
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (installDialogOpen && appState.screen === "home") render();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  installDialogOpen = false;
+  if (appState.screen === "home") render();
+});
+
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+      .then((registration) => {
+        const checkForUpdate = () => registration.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") checkForUpdate();
+        });
+      })
+      .catch(() => {});
   }, { once: true });
 }
 

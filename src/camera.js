@@ -30,6 +30,9 @@ export async function getAvailableCameras() {
 
 export async function startCamera(video, deviceId = null) {
   if (!navigator.mediaDevices?.getUserMedia) {
+    if (!window.isSecureContext) {
+      throw new Error("Camera access requires a secure HTTPS connection.");
+    }
     throw new Error("This browser does not support camera capture.");
   }
 

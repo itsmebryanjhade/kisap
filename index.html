@@ -3,18 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Kisap is a private, browser-based photo booth for four still and moving moments." />
+    <meta name="description" content="Create four-photo strips and moving photo booth memories for free with Kisap. No account, upload, or app installation required." />
+    <meta name="application-name" content="Kisap" />
+    <meta name="author" content="Bryan Jhade Ebuan" />
+    <!-- KISAP_SEO_BUILD -->
     <meta name="theme-color" content="#0b0b0b" />
-    <meta property="og:title" content="kisap. — a moment, still moving" />
-    <meta property="og:description" content="Create a four-moment photo strip privately on your own device." />
+    <meta property="og:site_name" content="Kisap" />
+    <meta property="og:locale" content="en_PH" />
+    <meta property="og:title" content="Kisap — Free Online Photo Booth &amp; Photo Strip Maker" />
+    <meta property="og:description" content="Capture four photos, keep the motion around each one, and download a private photo strip directly from your browser." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Kisap private web photo booth with two four-moment photo strips" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="kisap. — a moment, still moving" />
-    <meta name="twitter:description" content="Create a four-moment photo strip privately on your own device." />
+    <meta name="twitter:title" content="Kisap — Free Online Photo Booth &amp; Photo Strip Maker" />
+    <meta name="twitter:description" content="Capture four photos and moving moments, then download your private photo strip directly from your browser." />
     <meta name="twitter:image" content="/og-image.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -22,11 +27,20 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <title>kisap. — a moment, still moving</title>
+    <!-- KISAP_STRUCTURED_DATA -->
+    <title>Kisap — Free Online Photo Booth &amp; Photo Strip Maker</title>
     <script type="module" src="/src/main.js"></script>
   </head>
   <body>
-    <div id="app"></div>
-    <noscript>Kisap needs JavaScript to create your photo strip.</noscript>
+    <div id="app">
+      <main class="boot-fallback">
+        <p class="boot-fallback__brand">kisap<span>.</span></p>
+        <p class="boot-fallback__eyebrow">Private online photo booth</p>
+        <h1>A moment, <em>still moving.</em></h1>
+        <p>Create four-photo strips and moving memories for free in your browser. Your camera, photos, and edits stay on your device.</p>
+        <p class="boot-fallback__status">Preparing your photo booth…</p>
+      </main>
+    </div>
+    <noscript>Kisap needs JavaScript to capture, edit, and download your private photo strip.</noscript>
   </body>
 </html>

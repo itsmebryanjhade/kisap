@@ -1,6 +1,8 @@
-const CACHE_NAME = "kisap-shell-v2";
+const CACHE_PREFIX = "kisap-shell-";
+const CACHE_NAME = `${CACHE_PREFIX}__BUILD_ID__`;
 const APP_SHELL = [
   "/",
+  "/404.html",
   "/favicon.svg",
   "/apple-touch-icon.png",
   "/icon-192.png",
@@ -17,7 +19,8 @@ const APP_SHELL = [
 
 async function cacheApplicationShell() {
   const cache = await caches.open(CACHE_NAME);
-  await cache.addAll(APP_SHELL);
+  const results = await Promise.allSettled(APP_SHELL.map((url) => cache.add(url)));
+  if (results[0].status === "rejected") throw results[0].reason;
   const response = await fetch("/", { cache: "no-cache" });
   const html = await response.clone().text();
   await cache.put("/", response);
@@ -33,7 +36,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -48,8 +53,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+          }
           return response;
         })
         .catch(async () => (await caches.match(request)) || caches.match("/")),
@@ -61,7 +68,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
       if (response.ok) {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
       }
       return response;
     })),

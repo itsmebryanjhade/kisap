@@ -1,15 +1,27 @@
 {
   "name": "kisap.",
   "short_name": "kisap.",
-  "description": "A moment, still moving.",
+  "description": "A free, private online photo booth for four still and moving moments.",
+  "lang": "en-PH",
+  "dir": "ltr",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#0b0b0b",
   "theme_color": "#0b0b0b",
   "categories": ["photo", "entertainment", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Start a photo strip",
+      "short_name": "Start booth",
+      "description": "Open Kisap and begin capturing four moments.",
+      "url": "/#capture",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

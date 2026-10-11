@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/finalize-build.mjs && node scripts/verify-build.mjs",
     "preview": "vite preview",
-    "check": "node --check src/main.js && node --check src/camera.js && node --check src/gif-worker.js"
+    "check": "node --check src/main.js && node --check src/camera.js && node --check src/gif-worker.js && node --check scripts/finalize-build.mjs && node --check scripts/verify-build.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.7"
